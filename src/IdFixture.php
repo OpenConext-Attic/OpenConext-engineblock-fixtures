@@ -18,14 +18,22 @@ class IdFixture
     /**
      * @var IdFrame[]
      */
-    protected $frames = array();
+    protected $frames;
 
     /**
      * @param AbstractDataStore $dataStore
      */
-    function __construct(AbstractDataStore $dataStore)
+    public function __construct(AbstractDataStore $dataStore)
     {
         $this->dataStore = $dataStore;
+    }
+
+    private function loadFrames()
+    {
+        if (isset($this->frames)) {
+            return;
+        }
+
         $this->frames = $this->dataStore->load();
     }
 
@@ -34,6 +42,8 @@ class IdFixture
      */
     public function shiftFrame()
     {
+        $this->loadFrames();
+
         if (empty($this->frames)) {
             throw new \RuntimeException('No more IdFrames?');
         }
@@ -42,11 +52,15 @@ class IdFixture
 
     public function hasFrame($frameName)
     {
+        $this->loadFrames();
+
         return isset($this->frames[$frameName]);
     }
 
     public function getFrame($frameName)
     {
+        $this->loadFrames();
+
         if (!isset($this->frames[$frameName])) {
             throw new \RuntimeException("No frame with given name '$frameName'");
         }
@@ -56,10 +70,14 @@ class IdFixture
     /**
      * Queue up another set of ids to use.
      *
+     * @param $frameName
      * @param IdFrame $frame
+     * @return $this
      */
     public function addFrame($frameName, IdFrame $frame)
     {
+        $this->loadFrames();
+
         $this->frames[$frameName] = $frame;
         return $this;
     }
@@ -69,6 +87,12 @@ class IdFixture
      */
     public function clear()
     {
+        if (!isset($this->frames)) {
+            return $this;
+        }
+
+        $this->loadFrames();
+
         $this->frames = array();
         return $this;
     }
@@ -78,6 +102,10 @@ class IdFixture
      */
     public function __destruct()
     {
+        if (!isset($this->frames)) {
+            return;
+        }
+
         $this->dataStore->save($this->frames);
     }
 }

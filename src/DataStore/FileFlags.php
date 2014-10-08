@@ -8,13 +8,31 @@ class FileFlags
 
     public function __construct($dir)
     {
-        $this->setDir($dir);
+        $this->dir = $dir;
     }
 
-    protected function setDir($dir)
+    public function on($name, $value)
     {
-        if (is_writeable($dir)) {
-            $this->dir = $dir;
+        $this->verifyDir();
+
+        file_put_contents($this->dir . DIRECTORY_SEPARATOR . $name, $value);
+    }
+
+    public function off($name)
+    {
+        $this->verifyDir();
+
+        $file = $this->dir . DIRECTORY_SEPARATOR . $name;
+        if (!file_exists($file)) {
+            return;
+        }
+
+        unlink($file);
+    }
+
+    protected function verifyDir()
+    {
+        if (is_writeable($this->dir)) {
             return;
         }
 
@@ -24,22 +42,5 @@ class FileFlags
                 throw new \RuntimeException('Unable to create directory: ' . $this->dir);
             }
         }
-
-        $this->dir = $dir;
-    }
-
-    public function on($name, $value)
-    {
-        file_put_contents($this->dir . DIRECTORY_SEPARATOR . $name, $value);
-    }
-
-    public function off($name)
-    {
-        $file = $this->dir . DIRECTORY_SEPARATOR . $name;
-        if (!file_exists($file)) {
-            return;
-        }
-
-        unlink($file);
     }
 }

@@ -8,37 +8,36 @@ abstract class AbstractDataStore
 
     public function __construct($filePath)
     {
-        $this->setFilePath($filePath);
+        $this->filePath = $filePath;
     }
 
-    protected function setFilePath($filePath)
+    protected function verifyFilePath()
     {
-        if (is_writeable($filePath)) {
-            $this->filePath = $filePath;
+        if (is_writeable($this->filePath)) {
             return;
         }
 
-        $directory = dirname($filePath);
+        $directory = dirname($this->filePath);
         if (!file_exists($directory)) {
             $createdDirectory = mkdir($directory, 0777, true);
             if (!$createdDirectory) {
                 throw new \RuntimeException('Unable to create directory: ' . $directory);
             }
-    }
-
-        if (!file_exists($filePath)) {
-            $touched = touch($filePath);
-            chmod($filePath, 0666);
-            if (!$touched) {
-                throw new \RuntimeException('Unable to create file: ' . $filePath);
-            }
         }
 
-        $this->filePath = $filePath;
+        if (!file_exists($this->filePath)) {
+            $touched = touch($this->filePath);
+            chmod($this->filePath, 0666);
+            if (!$touched) {
+                throw new \RuntimeException('Unable to create file: ' . $this->filePath);
+            }
+        }
     }
 
     public function load($default = array())
     {
+        $this->verifyFilePath();
+
         $fileContents = file_get_contents($this->filePath);
         if ($fileContents === false) {
             throw new \RuntimeException('Unable to load data from: ' . $this->filePath);
@@ -57,6 +56,8 @@ abstract class AbstractDataStore
 
     public function save($data)
     {
+        $this->verifyFilePath();
+
         file_put_contents($this->filePath, $this->encode($data));
     }
 
