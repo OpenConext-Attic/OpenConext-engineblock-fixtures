@@ -39,6 +39,22 @@ class ServiceRegistryFixture
         return $this;
     }
 
+    public function registerIdp($entityId, $ssoLocation, $certData = '')
+    {
+        $this->data[$entityId] = array(
+            'workflowState' => 'prodaccepted',
+            'entityId'      => $entityId,
+            'SingleSignOnService:0:Binding'  => \SAML2_Const::BINDING_HTTP_POST,
+            'SingleSignOnService:0:Location' => $ssoLocation,
+            'SingleSignOnService:1:Binding'  => \SAML2_Const::BINDING_HTTP_REDIRECT,
+            'SingleSignOnService:1:Location' => $ssoLocation,
+        );
+        if (empty($certData)) {
+            $this->data[$entityId]['certData'] = $certData;
+        }
+        return $this;
+    }
+
     public function move($fromEntityId, $toEntityId)
     {
         $this->data[$toEntityId] = $this->data[$fromEntityId];
