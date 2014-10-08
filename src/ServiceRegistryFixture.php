@@ -148,12 +148,12 @@ class ServiceRegistryFixture
 
     public function blacklist($entityId)
     {
-        $this->fileFlags->on('blacklisted-' . md5($entityId), $entityId);
+        $this->fileFlags->off('whitelisted-' . md5($entityId), $entityId);
     }
 
     public function whitelist($entityId)
     {
-        $this->fileFlags->off('blacklisted-' . md5($entityId), $entityId);
+        $this->fileFlags->on('whitelisted-' . md5($entityId), $entityId);
     }
 
     public function allow($spEntityId, $idpEntityId)
