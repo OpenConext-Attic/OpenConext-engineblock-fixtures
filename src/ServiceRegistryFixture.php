@@ -4,7 +4,12 @@ namespace OpenConext\Component\EngineBlockFixtures;
 
 use OpenConext\Component\EngineBlockFixtures\DataStore\AbstractDataStore;
 use OpenConext\Component\EngineBlockFixtures\DataStore\FileFlags;
+use SAML2_Const;
 
+/**
+ * Class ServiceRegistryFixture
+ * @package OpenConext\Component\EngineBlockFixtures
+ */
 class ServiceRegistryFixture
 {
     const TYPE_SP = 1;
@@ -12,12 +17,14 @@ class ServiceRegistryFixture
 
     protected $fixture;
     protected $fileFlags;
+    protected $directory;
     protected $data;
 
-    public function __construct(AbstractDataStore $dataStore, FileFlags $fileFlags)
+    public function __construct(AbstractDataStore $dataStore, FileFlags $fileFlags, $directory)
     {
         $this->fixture = $dataStore;
         $this->fileFlags = $fileFlags;
+        $this->directory = $directory;
 
         $this->data = $dataStore->load();
     }
@@ -25,31 +32,46 @@ class ServiceRegistryFixture
     public function reset()
     {
         $this->data = array();
+        $files = glob($this->directory . 'arp-*');
+        foreach ($files as $file) {
+            unlink($file);
+        }
         return $this;
     }
 
-    public function registerSp($entityId, $acsLocation)
+    public function registerSp($name, $entityId, $acsLocation, $certData = '')
     {
         $this->data[$entityId] = array(
             'workflowState' => 'prodaccepted',
             'entityId'      => $entityId,
-            'AssertionConsumerService:0:Binding'  => \SAML2_Const::BINDING_HTTP_POST,
+            'name:en' => $name,
+            'name:nl' => $name,
+            'displayName:en' => $name,
+            'displayName:nl' => $name,
+            'AssertionConsumerService:0:Binding'  => SAML2_Const::BINDING_HTTP_POST,
             'AssertionConsumerService:0:Location' => $acsLocation,
         );
+        if (!empty($certData)) {
+            $this->data[$entityId]['certData'] = $certData;
+        }
         return $this;
     }
 
-    public function registerIdp($entityId, $ssoLocation, $certData = '')
+    public function registerIdp($name, $entityId, $ssoLocation, $certData = '')
     {
         $this->data[$entityId] = array(
             'workflowState' => 'prodaccepted',
             'entityId'      => $entityId,
-            'SingleSignOnService:0:Binding'  => \SAML2_Const::BINDING_HTTP_POST,
+            'name:en' => $name,
+            'name:nl' => $name,
+            'displayName:en' => $name,
+            'displayName:nl' => $name,
+            'SingleSignOnService:0:Binding'  => SAML2_Const::BINDING_HTTP_POST,
             'SingleSignOnService:0:Location' => $ssoLocation,
-            'SingleSignOnService:1:Binding'  => \SAML2_Const::BINDING_HTTP_REDIRECT,
+            'SingleSignOnService:1:Binding'  => SAML2_Const::BINDING_HTTP_REDIRECT,
             'SingleSignOnService:1:Location' => $ssoLocation,
         );
-        if (empty($certData)) {
+        if (!empty($certData)) {
             $this->data[$entityId]['certData'] = $certData;
         }
         return $this;
@@ -89,6 +111,30 @@ class ServiceRegistryFixture
         return $this;
     }
 
+    public function setEntityWantsSignature($entityId)
+    {
+        $this->data[$entityId]['redirect.sign'] = true;
+        return $this;
+    }
+
+    public function setEntityTrustedProxy($entityId)
+    {
+        $this->data[$entityId]['coin:trusted_proxy'] = true;
+        return $this;
+    }
+
+    public function setEntityManipulation($entityId, $manipulation)
+    {
+        $this->data[$entityId]['manipulation'] = $manipulation;
+        return $this;
+    }
+
+    public function setEntityNameIdFormatUnspecified($entityId)
+    {
+        $this->data[$entityId]['NameIDFormat'] = SAML2_Const::NAMEID_UNSPECIFIED;
+        return $this;
+    }
+
     public function addSpsFromJsonExport($spsConfigExportUrl)
     {
         $this->addEntitiesFromJsonConfigExport($spsConfigExportUrl);
@@ -101,6 +147,11 @@ class ServiceRegistryFixture
         return $this;
     }
 
+    /**
+     * @param $configExportUrl
+     * @param int $type
+     * @SuppressWarnings(PMD)
+     */
     protected function addEntitiesFromJsonConfigExport($configExportUrl, $type = self::TYPE_SP)
     {
         echo "Downloading ServiceRegistry configuration from: '{$configExportUrl}'..." . PHP_EOL;
@@ -127,8 +178,7 @@ class ServiceRegistryFixture
                 foreach ($entity['allowedEntities'] as $allowedEntityId) {
                     if ($type === self::TYPE_SP) {
                         $this->allow($entityId, $allowedEntityId);
-                    }
-                    else {
+                    } else {
                         $this->allow($allowedEntityId, $entityId);
                     }
                 }
@@ -140,8 +190,7 @@ class ServiceRegistryFixture
                     $this->block($entityId, $blockedEntityId);
                     if ($type === self::TYPE_SP) {
                         $this->block($entityId, $blockedEntityId);
-                    }
-                    else {
+                    } else {
                         $this->block($blockedEntityId, $entityId);
                     }
                 }
@@ -154,8 +203,7 @@ class ServiceRegistryFixture
         foreach ($array as $name => $value) {
             if (is_array($value)) {
                 $newArray = $this->flattenArray($value, $newArray, $prefix . $name . ':');
-            }
-            else {
+            } else {
                 $newArray[$prefix . $name] = $value;
             }
         }
@@ -165,11 +213,13 @@ class ServiceRegistryFixture
     public function blacklist($entityId)
     {
         $this->fileFlags->off('whitelisted-' . md5($entityId), $entityId);
+        return $this;
     }
 
     public function whitelist($entityId)
     {
         $this->fileFlags->on('whitelisted-' . md5($entityId), $entityId);
+        return $this;
     }
 
     public function allow($spEntityId, $idpEntityId)
@@ -179,6 +229,7 @@ class ServiceRegistryFixture
             'connection-allowed-' . md5($spEntityId) . '-' . md5($idpEntityId),
             $spEntityId . ' - ' . $idpEntityId
         );
+        return $this;
     }
 
     public function block($spEntityId, $idpEntityId)
@@ -188,10 +239,38 @@ class ServiceRegistryFixture
             'connection-forbidden-' . md5($spEntityId) . '-' . md5($idpEntityId),
             $spEntityId . ' - ' . $idpEntityId
         );
+        return $this;
+    }
+
+    public function allowAttributeValue($entityId, $arpAttribute, $attributeValue)
+    {
+        $filePath = $this->directory . 'arp-' . md5($entityId) . '.json';
+
+        // Load data
+        $data = array('attributes' => array());
+        if (file_exists($filePath)) {
+            $data = json_decode(file_get_contents($filePath), true);
+        }
+
+        // Save allowed value
+        if (!isset($data['attributes'][$arpAttribute])) {
+            $data['attributes'][$arpAttribute] = array();
+        }
+        $data['attributes'][$arpAttribute][] = $attributeValue;
+
+        // Write out data
+        file_put_contents($filePath, json_encode($data));
+
+        return $this;
+    }
+
+    public function save()
+    {
+        $this->fixture->save($this->data);
     }
 
     public function __destruct()
     {
-        $this->fixture->save($this->data);
+        $this->save();
     }
 }
