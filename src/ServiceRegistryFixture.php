@@ -242,24 +242,31 @@ class ServiceRegistryFixture
         return $this;
     }
 
+    public function allowNoAttributeValues($entityId)
+    {
+        $this->data[$entityId]['arp'] = array();
+
+        return $this;
+    }
+
     public function allowAttributeValue($entityId, $arpAttribute, $attributeValue)
     {
-        $filePath = $this->directory . 'arp-' . md5($entityId) . '.json';
-
-        // Load data
-        $data = array('attributes' => array());
-        if (file_exists($filePath)) {
-            $data = json_decode(file_get_contents($filePath), true);
+        if (!isset($this->data[$entityId]['arp'])) {
+            $this->data[$entityId]['arp'] = array();
         }
 
         // Save allowed value
-        if (!isset($data['attributes'][$arpAttribute])) {
-            $data['attributes'][$arpAttribute] = array();
+        if (!isset($this->data[$entityId]['arp'][$arpAttribute])) {
+            $this->data[$entityId]['arp'][$arpAttribute] = array();
         }
-        $data['attributes'][$arpAttribute][] = $attributeValue;
+        $this->data[$entityId]['arp'][$arpAttribute][] = $attributeValue;
 
-        // Write out data
-        file_put_contents($filePath, json_encode($data));
+        return $this;
+    }
+
+    public function setWorkflowState($entityId, $workflowState)
+    {
+        $this->data[$entityId]['workflowState'] = $workflowState;
 
         return $this;
     }
